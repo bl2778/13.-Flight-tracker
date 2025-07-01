@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Button Test</title>
+</head>
+<body>
+    <h1>🧪 BUTTON TEST PAGE</h1>
+    
+    <h2>Test 1: Direct Form</h2>
+    <form method="POST" action="http://localhost:5000/trigger-search">
+        <button type="submit" style="background: red; color: white; padding: 20px; font-size: 20px;">
+            🚀 DIRECT POST TEST
+        </button>
+    </form>
+    
+    <h2>Test 2: JavaScript Submit</h2>
+    <button onclick="submitForm()" style="background: blue; color: white; padding: 20px; font-size: 20px;">
+        🔗 JS SUBMIT TEST
+    </button>
+    
+    <script>
+    function submitForm() {
+        console.log("🐛 JS function called");
+        
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'http://localhost:5000/trigger-search';
+        
+        document.body.appendChild(form);
+        console.log("🐛 Form created, submitting...");
+        form.submit();
+    }
+    </script>
+</body>
+</html>

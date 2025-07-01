@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search History - Flight Price Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="history-nav">
+        <a href="/">← Back to Dashboard</a>
+        <span>|</span>
+        <span>Search History</span>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>📊 Flight Search History</h1>
+            <div class="header-actions">
+                {% if not search_status.running %}
+                <form method="POST" action="/trigger-search" style="display: inline;">
+                    <button type="submit" class="search-btn">🚀 Run New Search</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Statistics Overview -->
+        <div class="panel">
+            <h2>📈 Search Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">{{ stats.total_searches }}</div>
+                    <div class="stat-label">Total Searches</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">{{ stats.avg_success_rate }}%</div>
+                    <div class="stat-label">Avg Success Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">{{ stats.total_routes_checked }}</div>
+                    <div class="stat-label">Routes Checked</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">
+                        {% if stats.best_price_ever %}
+                            ¥{{ "%.0f"|format(stats.best_price_ever) }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                    <div class="stat-label">Best Price Ever</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search History Table -->
+        <div class="panel">
+            <h2>🕒 Search History</h2>
+            {% if job_runs %}
+            <div class="table-wrapper">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Search Date</th>
+                            <th>Status</th>
+                            <th>Success Rate</th>
+                            <th>Best Price</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for run in job_runs %}
+                        <tr>
+                            <td><strong>{{ run.run_date }}</strong></td>
+                            <td>
+                                <span class="status-{{ run.status }}">
+                                    {{ run.status.upper() }}
+                                </span>
+                            </td>
+                            <td>
+                                {% set rate = (run.successful_routes / run.total_routes * 100) if run.total_routes > 0 else 0 %}
+                                <span class="success-rate">{{ "%.1f"|format(rate) }}%</span>
+                                <br><small>{{ run.successful_routes }}/{{ run.total_routes }} routes</small>
+                            </td>
+                            <td>
+                                {% if run.min_price %}
+                                    <span class="price">¥{{ "%.0f"|format(run.min_price) }}</span>
+                                {% else %}
+                                    <span style="color: #6c757d;">No prices</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="/history/{{ run.run_date }}" class="view-details-btn">
+                                    View Details →
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="no-data">
+                <h3>🔍 No Search History</h3>
+                <p>No flight searches completed yet. Run your first search!</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

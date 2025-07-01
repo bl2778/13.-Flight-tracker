@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Details - {{ search_date }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="history-nav">
+        <a href="/">← Dashboard</a>
+        <span>|</span>
+        <a href="/history">← Search History</a>
+        <span>|</span>
+        <span>{{ search_date }} Details</span>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>📅 Search Details: {{ search_date }}</h1>
+        </div>
+
+        <!-- Search Summary -->
+        {% if job_run %}
+        <div class="panel">
+            <h2>📊 Search Summary</h2>
+            <div class="status-grid">
+                <div class="status-item">
+                    <strong>Search Date:</strong> {{ job_run.run_date }}
+                </div>
+                <div class="status-item">
+                    <strong>Status:</strong> 
+                    <span class="status-{{ job_run.status }}">{{ job_run.status.upper() }}</span>
+                </div>
+                <div class="status-item">
+                    <strong>Success Rate:</strong> 
+                    {{ "%.1f"|format((job_run.successful_routes / job_run.total_routes * 100) if job_run.total_routes > 0 else 0) }}%
+                </div>
+                {% if job_run.min_price %}
+                <div class="status-item">
+                    <strong>Best Price:</strong> 
+                    <span class="best-price">¥{{ job_run.min_price }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Flight Results -->
+        <div class="panel">
+            <h2>✈️ Flight Results ({{ results|length }} routes)</h2>
+            {% if results %}
+            <div class="table-wrapper">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Price</th>
+                            <th>Airlines & Route</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in results %}
+                        <tr>
+                            <td><span class="airport-code">{{ result.origin }}</span></td>
+                            <td><span class="airport-code">{{ result.destination }}</span></td>
+                            <td class="price">
+                                {% if result.price != 'N/A' %}
+                                    {{ result.price }}
+                                {% else %}
+                                    <span class="no-price">No flights</span>
+                                {% endif %}
+                            </td>
+                            <td class="route">{{ result.segments }}</td>
+                            <td>
+                                {% if result.price != 'N/A' %}
+                                    <span class="status-success">✅ Found</span>
+                                {% else %}
+                                    <span class="status-failed">❌ No flights</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="no-results">
+                <h3>🔍 No Results Found</h3>
+                <p>No flight data available for this search date.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

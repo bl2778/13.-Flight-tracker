@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Price Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Fix infinite chart expansion */
+        .chart-container {
+            height: 400px !important;
+            max-height: 400px !important;
+            width: 100% !important;
+            position: relative !important;
+            overflow: hidden !important;
+        }
+        #priceChart {
+            max-height: 400px !important;
+            max-width: 100% !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>✈️ Flight Price Tracker</h1>
+            <div class="header-actions">
+                <a href="/history" class="history-btn">📊 View History</a>
+                
+                <form method="POST" action="/trigger-search">
+                    <button type="submit" class="search-btn" {% if search_status.running %}disabled{% endif %}>
+                        {% if search_status.running %}
+                            🔄 Search Running...
+                        {% else %}
+                            🚀 Run Flight Search
+                        {% endif %}
+                    </button>
+                </form>
+                
+                {% if search_status.last_run %}
+                <div class="last-update">
+                    <small>Last: {{ search_status.last_run }}</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="flash-message flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Progress Panel -->
+        {% if search_status.running %}
+        <div class="panel progress-panel">
+            <h3>🔄 Flight Search in Progress</h3>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 50%;"></div>
+            </div>
+            <p><strong>Status:</strong> {{ search_status.current_route or 'Searching flights...' }}</p>
+            <p><em>Please wait while we search for flights. This may take 1-2 minutes.</em></p>
+        </div>
+        {% endif %}
+
+        <!-- Error Display -->
+        {% if search_status.error %}
+        <div class="panel error-panel">
+            <h3>❌ Search Error</h3>
+            <p>{{ search_status.error }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Search Status -->
+        <div class="panel status-panel">
+            <h2>📊 Latest Search Results</h2>
+            {% if job_runs %}
+            <div class="status-grid">
+                <div class="status-item">
+                    <strong>Last Completed:</strong> {{ job_runs[0].run_date }}
+                </div>
+                <div class="status-item">
+                    <strong>Status:</strong> {{ job_runs[0].status.upper() }}
+                </div>
+                <div class="status-item">
+                    <strong>Success Rate:</strong> {{ job_runs[0].successful_routes }}/{{ job_runs[0].total_routes }}
+                </div>
+                {% if job_runs[0].min_price %}
+                <div class="status-item">
+                    <strong>💰 Best Price:</strong> CNY {{ "%.0f"|format(job_runs[0].min_price) }}
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="no-data">
+                <p>🔍 <strong>No searches completed yet!</strong></p>
+                <p>Click the search button to get started.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Flight Results -->
+        <div class="panel results-panel">
+            <h2>💸 Flight Prices</h2>
+            {% if results %}
+            <p>Found <strong>{{ results|length }}</strong> flights. Click any row for price history.</p>
+            <div class="table-wrapper">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Price</th>
+                            <th>Route</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in results %}
+                        <tr class="clickable-row" onclick="showHistory('{{ result.origin }}', '{{ result.destination }}')">
+                            <td><span class="airport-code">{{ result.origin }}</span></td>
+                            <td><span class="airport-code">{{ result.destination }}</span></td>
+                            <td class="price">
+                                {% if result.price != 'N/A' %}
+                                    {{ result.price }}
+                                {% else %}
+                                    <span class="no-price">No flights</span>
+                                {% endif %}
+                            </td>
+                            <td class="route">{{ result.segments }}</td>
+                            <td class="date">{{ result.date }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="no-results">
+                <h3>🔍 No Flight Data</h3>
+                <p>Click <strong>"Run Flight Search"</strong> to find flights!</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Price Chart with Fixed Height -->
+        <div class="panel chart-panel">
+            <h2>📈 Price History</h2>
+            <p class="chart-hint">Click on any flight above to see price trends</p>
+            <div class="chart-container" style="height: 400px; max-height: 400px; position: relative; overflow: hidden;">
+                <canvas id="priceChart" style="max-height: 400px; max-width: 100%;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fixed chart configuration
+        const chart = new Chart(document.getElementById('priceChart'), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Price (CNY)',
+                    data: [],
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Select a flight to view price history'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            callback: function(value) {
+                                return '¥' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Show price history function
+        function showHistory(origin, destination) {
+            fetch('/api/history/' + origin + '/' + destination)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        alert('No price history available yet');
+                        chart.options.plugins.title.text = 'Select a flight to view price history';
+                        chart.update('none');
+                        return;
+                    }
+                    
+                    const labels = data.map(item => item.date).reverse();
+                    const prices = data.map(item => parseFloat(item.price.replace(/[^\d.]/g, ''))).reverse();
+                    
+                    chart.data.labels = labels;
+                    chart.data.datasets[0].data = prices;
+                    chart.data.datasets[0].label = origin + ' → ' + destination + ' Price';
+                    chart.options.plugins.title.text = origin + ' → ' + destination + ' Price History';
+                    chart.update('none'); // No animation to prevent expansion
+                    
+                    document.querySelector('.chart-panel').scrollIntoView({ behavior: 'smooth' });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading price history');
+                });
+        }
+
+        // Simple auto-refresh only when search is running
+        {% if search_status.running %}
+        setTimeout(function() {
+            window.location.reload();
+        }, 10000); // Refresh after 10 seconds
+        {% endif %}
+
+        console.log('Page loaded successfully');
+    </script>
+</body>
+</html>
