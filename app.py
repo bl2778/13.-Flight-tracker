@@ -1,9 +1,11 @@
+import os
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 from database import FlightDatabase
 from flight_checker import run_flight_check
 import threading
 import traceback
 from datetime import datetime
+
 
 app = Flask(__name__)
 app.secret_key = 'flight-tracker-secret-key-change-in-production'
