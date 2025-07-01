@@ -146,8 +146,11 @@ def api_job_runs():
     """API endpoint for job run history"""
     return jsonify(db.get_job_runs())
 
+
 if __name__ == '__main__':
-    print("🌐 Starting Flight Price Tracker...")
-    print("📍 Dashboard: http://localhost:5000")
-    print("📊 History: http://localhost:5000/history")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # 获取Zeabur提供的端口，默认5000
+    port = int(os.environ.get('PORT', 5000))
+    print(f"Starting app on port {port}")
+    
+    # 必须绑定到 0.0.0.0 和正确端口
+    app.run(host='0.0.0.0', port=port, debug=False)
